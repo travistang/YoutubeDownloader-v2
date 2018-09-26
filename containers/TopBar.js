@@ -9,6 +9,9 @@ const mapDispatchToProps = (dispatch) => {
     search: (text) => dispatch({
       type: Actions.SET_SEARCH_TEXT,
       searchText: text
+    }),
+    clearToast: () => dispatch({
+      type: Actions.CLEAR_TOAST
     })
   }
 }

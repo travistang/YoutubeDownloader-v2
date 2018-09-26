@@ -8,8 +8,13 @@ import {
   View,
   Text,
   Button,
-  TextInput
+  TextInput,
+
+  Toast
 } from  'react-native-ui-lib'
+
+import SpinnerOverlay from './SpinnerOverlay'
+
 
 import Spinner from 'react-native-spinkit'
 import Icon from 'react-native-vector-icons/FontAwesome'
@@ -87,7 +92,18 @@ export default class TopBar extends React.Component {
           />
           {this.renderSearchClearButton()}
         </View>
-
+        {/* Toast and spinner here...*/}
+        <Toast
+          message={this.props.toastMessage}
+          allowDismiss
+          onDismiss={this.props.clearToast}
+          visible={!!this.props.toastMessage}
+        />
+        {/* For overlay */}
+        <SpinnerOverlay
+          visible={!!this.props.overlayMessage}
+          textContent={this.props.overlayMessage}
+        />
       </View>
     )
   }

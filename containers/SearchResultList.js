@@ -9,7 +9,8 @@ const mapDispatchToProps = dispatch => {
     showAudioDetails: (item) => dispatch({
       type: Actions.SHOW_AUDIO_DETAILS,
       audio: item
-    })
+    }),
+
   }
 }
 export default connect(mapStateToProps,mapDispatchToProps)(SearchResultList)

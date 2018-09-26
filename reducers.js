@@ -7,9 +7,16 @@ const initialState = {
   error: null,
 
   audioDetails: null,
+  isDownloadInstructionSent: false,
   // the already downloaded videos,
   // this should share the same format as the search result
-  inDeviceAudios: []
+  inDeviceAudios: {},
+
+  store: null,
+
+  // toasting and overlay
+  overlayMessage: null,
+  toastMessage: null,
 }
 export default function (state = initialState,action) {
   console.log(action)
@@ -31,7 +38,54 @@ export default function (state = initialState,action) {
 
     case Actions.SHOW_AUDIO_DETAILS:
       return {...state,audioDetails: action.audio}
-    
+
+    case Actions.SAVE_SOCKET:
+      return {...state,socket: action.socket}
+
+    case Actions.SAVE_STORE:
+      return {...state,store: action.store}
+
+    case Actions.UPDATE_AUDIO_INFO:
+      return {
+        ...state,
+        inDeviceAudios: {
+          ...state.inDeviceAudios,
+          [action.id]: action.status
+        }
+      }
+    case Actions.SHOW_LOADING_OVERLAY:
+      return {
+        ...state,
+        overlayMessage: action.message
+      }
+    // a helper here...
+    case Actions.CLEAR_LOADING_OVERLAY:
+      return {
+        ...state,
+        overlayMessage: null
+      }
+    case Actions.SHOW_TOAST:
+      return {
+        ...state,
+        toastMessage: action.message
+      }
+    // a helper here...
+    case Actions.CLEAR_TOAST:
+      return {
+        ...state,
+        toastMessage: null
+      }
+
+    case Actions.MARK_DOWNLOAD_INSTRUCTION_SENT:
+      return {
+        ...state,
+        isDownloadInstructionSent: true
+      }
+    case Actions.CLEAR_DOWNLOAD_INSTRUCTION_SENT:
+      return {
+        ...state,
+        isDownloadInstructionSent: false
+      }
     default:
       return state
 

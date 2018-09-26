@@ -24,9 +24,42 @@ import MainAudioLists from './containers/MainAudioLists'
 import SearchResultList from './containers/SearchResultList'
 import TopBar from './containers/TopBar'
 import AudioDetailsDialog from './containers/AudioDetailsDialog'
-const store = configureStore()
+import io from 'socket.io-client';
+import {SERVER_URL} from './config'
+import {
+  SAVE_STORE,
+  SAVE_SOCKET,
+  LOAD_DOWNLOADED_AUDIO_INFO,
+
+  CLEAR_TOAST,
+  CLEAR_LOADING_OVERLAY
+} from './actions'
+
+export const store = configureStore()
 type Props = {};
+
 export default class App extends Component<Props> {
+  constructor(props) {
+    super(props)
+    // sorry, need to have some backend code here...
+
+    const socket = io(SERVER_URL)
+    // mark down store and socket here...
+    store.dispatch({
+      type:  SAVE_SOCKET,
+      socket
+    })
+
+
+    socket.on('connect',() => {
+      // trigger the audio info load: fetch the info of the audios the user tried to download
+      // the sagas will do the work for us
+      store.dispatch({
+        type: LOAD_DOWNLOADED_AUDIO_INFO
+      })
+    })
+
+  }
   getMainContainerStyle() {
     return {
       ...styles.container,
@@ -51,6 +84,8 @@ export default class App extends Component<Props> {
           <MainAudioLists />
           {/* For showing the details of audio*/}
           <AudioDetailsDialog />
+          {/* For showing toasts */}
+
         </View>
 
       </Provider>

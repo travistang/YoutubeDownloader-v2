@@ -3,9 +3,21 @@ import {
   ScrollView
 } from 'react-native'
 import SearchResultList from '../containers/SearchResultList'
+import InDeviceResultListAudio from './InDeviceResultListAudio'
 export default class MainAudioLists extends React.Component {
   constructor(props) {
     super(props)
+  }
+  filteredInDeviceAudios() {
+    if(!this.props.searchText || !this.props.searchText.length) {
+      return Object.values(this.props.inDeviceAudios)
+    }
+    return
+      Object.values(this.props.inDeviceAudios)
+        .filter(audio =>
+          audio.name.toLowerCase().trim()
+            .indexOf(this.props.searchText
+              .toLowerCase().trim()) > -1)
   }
   render() {
     return (
@@ -13,6 +25,9 @@ export default class MainAudioLists extends React.Component {
         {
           (this.props.searchResult.length)?<SearchResultList />:null
         }
+
+        <InDeviceResultListAudio audios={this.filteredInDeviceAudios()} />
+
       </ScrollView>
     )
   }
