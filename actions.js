@@ -36,3 +36,13 @@ export const CLEAR_LOADING_OVERLAY = "CLEAR_LOADING_OVERLAY"
 
 export const MARK_DOWNLOAD_INSTRUCTION_SENT = "MARK_DOWNLOAD_INSTRUCTION_SENT"
 export const CLEAR_DOWNLOAD_INSTRUCTION_SENT = "CLEAR_DOWNLOAD_INSTRUCTION_SENT"
+
+// server URL
+// given a url, set its value to the store
+export const SET_SERVER_URL = "SET_SERVER_URL"
+// given a url, save it to ASYNC STORAGE
+export const SAVE_SERVER_URL = "SAVE_SERVER_URL"
+// mark the action of loading server url as complete
+export const SET_LOAD_SERVER_URL_COMPLETE = "SET_LOAD_SERVER_URL_COMPLETE"
+// report the error of the given URL
+export const SET_SERVER_URL_UPDATE_ERROR = "SET_SERVER_URL_UPDATE_ERROR"

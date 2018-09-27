@@ -18,7 +18,6 @@ export default class AudioDetailsDialog extends React.Component {
   openOnYoutube() {
     Linking.openURL(this.props.audioDetails.url)
   }
-
   //
   componentWillReceiveProps(props) {
     if(props.isDownloadInstructionSent) {

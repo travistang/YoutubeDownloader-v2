@@ -29,7 +29,7 @@ export default class TopBar extends React.Component {
 
   getSettingsButton() {
     return (
-      <TouchableOpacity>
+      <TouchableOpacity onPress={this.props.onSettingsClick}>
         <Icon name="gear" size={24} color={Colors.dark10}/>
       </TouchableOpacity>
     )

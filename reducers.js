@@ -1,4 +1,5 @@
 import * as Actions from './actions'
+import {DEFAULT_SERVER_URL} from './config'
 const initialState = {
   searchResult: [],
   searchText: '',
@@ -17,6 +18,10 @@ const initialState = {
   // toasting and overlay
   overlayMessage: null,
   toastMessage: null,
+
+  serverURL: DEFAULT_SERVER_URL,
+  isServerURLLoadingComplete: false,
+  serverURLUpdateError: null
 }
 export default function (state = initialState,action) {
   console.log(action)
@@ -85,6 +90,22 @@ export default function (state = initialState,action) {
       return {
         ...state,
         isDownloadInstructionSent: false
+      }
+    case Actions.SET_SERVER_URL:
+      return {
+        ...state,
+        serverURL: action.url,
+        urlUpdateError: null // clear error on update
+      }
+    case Actions.SET_LOAD_SERVER_URL_COMPLETE:
+      return {
+        ...state,
+        isServerURLLoadingComplete: action.complete || true
+      }
+    case Actions.SET_SERVER_URL_UPDATE_ERROR:
+      return {
+        ...state,
+        urlUpdateError: action.error
       }
     default:
       return state

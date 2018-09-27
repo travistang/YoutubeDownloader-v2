@@ -12,7 +12,7 @@ import {
 } from '../config'
 import * as Actions from '../actions'
 import io from 'socket.io-client';
-import {SERVER_URL} from '../config'
+import {DEFAULT_SERVER_URL,SERVER_URL_KEY} from '../config'
 import {store} from '../App'
 import {
   showOverlay,
@@ -35,10 +35,12 @@ const saveAudioId = async (audioId, audio) => {
 
 // get all the audio ids that the user has tried to download
 const getAllAudioIds = async () => {
-  return await AsyncStorage.getAllKeys()
+  return await AsyncStorage
+    .getAllKeys()
+    .filter(key => key[0] !== '@') // those are internal configs...
 }
 
-const getAllRemoteAudioIds = async () => {
+const getAllRemoteAudioIds = (SERVER_URL) => async () => {
   const url = `${SERVER_URL}/audio`
   const audios = await fetchJSON(url)
   return audios
@@ -92,12 +94,14 @@ function* watchLoadDownloadedAudio () {
 
   yield takeLatest(Actions.LOAD_DOWNLOADED_AUDIO_INFO,function* () {
     yield call(showToast,`Fetching downloaded audios`)
+    const serverURL = yield select(store => store.serverURL)
+    if(!serverURL) return // cant go further...
     // first get all the marked entries from async storage
     // then for each of them, listen to the event
     const socket = yield select(store => store.socket)
 
     try {
-      const audios = yield call(getAllRemoteAudioIds)
+      const audios = yield call(getAllRemoteAudioIds(serverURL))
       // first get the store to record all downloaded audios, aka those you pressed the "download" button
       yield all(
         audios.map(audio => put({
@@ -127,11 +131,12 @@ function* watchLoadDownloadedAudio () {
 // the saga that watches the audio download ("DOWNLOAD_AUDIO") instructions
 function* watchDownloadAudioInstruction () {
   yield takeEvery(Actions.DOWNLOAD_AUDIO, function* (action) {
-    yield call(downloadAudioToServer,action.id)
+    const serverURL = yield select(store => store.serverURL)
+    yield call(downloadAudioToServer(serverURL),action.id)
   })
 }
 // given a video id, download it from youtube to server
-function* downloadAudioToServer(id) {
+const  downloadAudioToServer = (SERVER_URL) => function*(id) {
   // trigger overlay...
   yield call(showOverlay,"Sending instructions...")
   const url = `${SERVER_URL}/audio/${id}`
@@ -161,11 +166,13 @@ const fetchJSON = async (url,config = {}) => {
   let response = await fetch(url,finalConfig)
   return await response.json()
 }
-const getAudioStatus  = async (id) => {
-  const url = `${SERVER_URL}/audio/${id}`
-  const audioStatus = await fetchJSON(url)
-  return audioStatus
-}
+
+// const getAudioStatus  = (SERVER_URL) => async (id) => {
+//   const url = `${SERVER_URL}/audio/${id}`
+//   const audioStatus = await fetchJSON(url)
+//   return audioStatus
+// }
+
 function* resetError() {
   yield put({
     type: Actions.SET_ERROR,
@@ -173,7 +180,7 @@ function* resetError() {
   })
 }
 // TODO: allow search page changes here...
-function* searchAudio(text) {
+const searchAudio = (SERVER_URL) => function* (text) {
   // now launch the search
   const url = `${SERVER_URL}/search/${encodeURIComponent(text)}`
   try {
@@ -204,13 +211,14 @@ function* searchAudio(text) {
   and do nothing else,
 */
 function* launchSearch(action) {
+  const serverURL = yield select(store => store.serverURL)
   yield put({
     type: Actions.SET_AWAIT_SEARCH,
     awaitSearch: action.searchText.length > 0
   })
   if(action.searchText.length > 0) {
       yield delay(2000) // debounce for 2 seconds
-      yield call(searchAudio,action.searchText) // then start the real search
+      yield call(searchAudio(serverURL),action.searchText) // then start the real search
   } else {
     yield put({
       type: Actions.SET_SEARCH_RESULT,
@@ -242,15 +250,77 @@ function* setSearchTextWatcher() {
   yield takeLatest(Actions.SET_SEARCH_TEXT,launchSearch)
 }
 
+function* loadAudioInfo() {
+  yield put({
+    type: Actions.LOAD_DOWNLOADED_AUDIO_INFO
+  })
+}
+// retrieve the saved server url from the store
+function* getServerURL() {
+  const serverURL = yield call(async () => await AsyncStorage.getItem(SERVER_URL_KEY))
 
+  if(serverURL != null) {
+    yield put({
+      type: Actions.SET_SERVER_URL,
+      url: serverURL
+    })
+  }
+    // no matter there are values or what, mark it as completed ( becahse there are default ones...)
+    yield put({type: Actions.SET_LOAD_SERVER_URL_COMPLETE})
+}
 
+// watch for "SAVE_SERVER_URL" event
+function* watchSaveServerURL() {
+  yield takeLatest(Actions.SAVE_SERVER_URL,function* (action) {
+    // first check the url
+    const validate = (url) => {
+      if(!url) return "URL cannot be empty"
+      if(url.trim().length === 0) "URL cannot be empty"
+      if(!['http://','https://'].some(prefix => url.indexOf(prefix) === 0)) {
+        return "Prefix of URL has to be 'http://' or 'https://'"
+      }
+      return null
+    }
+    const errorMessage = validate(action.url)
+    if(errorMessage) {
+      yield put({
+        type: Actions.SET_SERVER_URL_UPDATE_ERROR,
+        error: errorMessage
+      })
+      return // no more processing
+    }
+    // url is good, now...
+    // remove the "load server complete" protection so that sockets will subscribe to new address
+    yield put({
+      type: Actions.SET_LOAD_SERVER_URL_COMPLETE,
+      complete: false
+    })
+    const newURL = action.url
+    // update the AsyncStorage's value
+    yield call(async () => AsyncStorage.setItem(SERVER_URL_KEY,newURL))
+    // update the store right now
+
+    yield put({
+      type: Actions.SET_SERVER_URL,
+      url: newURL
+    })
+
+    // mark load server url complete again
+    yield put({
+      type: Actions.SET_LOAD_SERVER_URL_COMPLETE
+    })
+  })
+}
 export default function* rootSaga() {
   yield [
+    getServerURL(),
     setSearchTextWatcher(),
     // this is for loading the status of all downloading audios on START UP
     watchLoadDownloadedAudio(),
     // this is for listening to the command for DOWNLOADING audios
     watchDownloadAudioInstruction(),
+    // loadAudioInfo(),
+    watchSaveServerURL(),
   ]
 
 }
