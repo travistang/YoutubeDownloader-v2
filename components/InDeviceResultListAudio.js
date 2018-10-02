@@ -4,38 +4,89 @@ import {
   Text,
   View,
   ProgressBar,
-  Colors
+  Colors,
+  Button,
 } from 'react-native-ui-lib'
 import {
   StyleSheet,
   Image
 } from 'react-native'
+import Icon from 'react-native-vector-icons/FontAwesome'
 
 export default class InDeviceResultListAudio extends React.Component {
+  // display a 3-step diagram
+  // YT -> Server -> Device
+  // status are displayed by color of the icons...
+  // orange means proceeding; green means done; red means error. gray means not happened yet
   getAudioProgressComponent(audio) {
-    if(audio.progress === 100 || audio.status === 'complete') {
-      return (<Text green10> On Server </Text>)
+    const iconColors = [null,null,null,null,null] // 3 steps with 2 arrows, so 5 colors...
+    // determine the colors of the icons first
+    // these are from yt -> server
+    if (audio.status === 'complete') {
+      iconColors[0] = iconColors[1] = iconColors[2] = Colors.green40
+      iconColors[3] = iconColors[4] = Colors.dark40
+    }
+    else if (audio.status === 'failed') {
+      iconColors[0] = iconColors[1] = iconColors[2] = Colors.red40
+      iconColors[3] = iconColors[4] = Colors.dark40
+    }
+    else if (audio.status === 'progress') {
+      iconColors[0] = iconColors[1] = iconColors[2] = Colors.orange40
+      iconColors[3] = iconColors[4] = Colors.dark40
     }
 
-    if(audio.progress) {
-      return (
+    if(iconColors.some(color => !color)) return null // ????
+
+    const icons = "youtube,arrow-right,server,arrow-right,mobile"
+      .split(',')
+      .map((icon,i) => (<Icon color={iconColors[i]} name={icon} size={18} style={{margin: 4}}/>))
+    const iconsContainer = (
+      <View row style={style.progressIconView}>
+        {icons}
+      </View>
+    )
+    // prepare for the action slots (the things below the arrow stuffs)
+    // if its downloading from server, then show the progress bar
+    // if its completed, then show the download button
+    // if its failed, show the retry button...
+
+    let actionSlot = null
+    if(audio.status === 'progress') {
+      actionSlot = (
         <View style={style.progressView}>
           <Text> {audio.progress} %</Text>
           <ProgressBar
-
+            style={{width: '100%'}}
             progress={audio.progress}
             height={10}
           />
         </View>
       )
     }
-    return (<Text> {audio.status} </Text>)
-    // now its being downloaded, show progress
-    // TODO: Download / play button!
+    else if (audio.status === 'complete') {
+      actionSlot = (
+        <View style={{width: '100%'}}>
+          <Button block backgroundColor="transparent" onPress={this.downloadToDevice.bind(this,audio)}>
+            <Icon name="download" />
+          </Button>
+        </View>
+      )
+    }
 
-    // its being downloaded but not yet completed
+    // both the arrow thing and the actions slots are prepared, now return both
+    return (
+      <View>
+        {iconsContainer}
+        {actionSlot}
+      </View>
+    )
 
   }
+  downloadToDevice(audio) {
+    if(audio.status !== 'complete') return // well its not on server, so nothing to download
+    // TODO: dispatch actions here!
+  }
+
   cardItemComponent(audio,key) {
     return (
       <Card key={key} row style={style.cardContainer}>
@@ -66,8 +117,11 @@ export default class InDeviceResultListAudio extends React.Component {
   }
 }
 
-const cardHeight = 128
+const cardHeight = 148
 const style = StyleSheet.create({
+  progressIconView: {
+    width: '100%',
+  },
   thumbnail: {
     height: cardHeight,
     width: '30%',

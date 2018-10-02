@@ -26,11 +26,12 @@ import {
 // because its the key (audio id) that matters
 // as the status will be updated by the websocket
 const saveAudioId = async (audioId, audio) => {
-  const keys = await AsyncStorage.getAllKeys()
-  if(keys.indexOf(audioId) > -1) return
-
-  // no such audio, saving
-  return await AsyncStorage.setItem(audioId,JSON.stringify(audio))
+  return cacheOrFetch(audioId,() => JSON.stringify(audio))
+  // const keys = await AsyncStorage.getAllKeys()
+  // if(keys.indexOf(audioId) > -1) return
+  //
+  // // no such audio, saving
+  // return await AsyncStorage.setItem(audioId,JSON.stringify(audio))
 }
 
 // get all the audio ids that the user has tried to download
@@ -87,7 +88,6 @@ const subscribeToAudioStatusChange = (socket) => (id) => {
 
 }
 
-
 // the saga that watches the "LOAD_DOWNLOADED_AUDIO_INFO" action
 
 function* watchLoadDownloadedAudio () {
@@ -114,7 +114,7 @@ function* watchLoadDownloadedAudio () {
       audios
         .filter(a => a.status === 'pending'
           || (a.status === 'progress' && a.progress < 100))
-        .forEach(subscribeToAudioStatusChange(socket))
+        .forEach(a => subscribeToAudioStatusChange(socket)(a.id))
       // subscribe to each id
       yield call(clearToast)
     } catch(e) {
@@ -255,6 +255,25 @@ function* loadAudioInfo() {
     type: Actions.LOAD_DOWNLOADED_AUDIO_INFO
   })
 }
+// helper function for "find cache first then fetch from remote" action
+const cacheOrFetch = async (cacheKey,fetchFunc,cacheResult = true) => {
+  let cache = await AsyncStorage.getItem(cacheKey)
+  if(!!cache) return cache
+  let response = await fetchFunc()
+  // convert type to string for async storage
+  if(typeof response !== 'string') response = JSON.stringify(response)
+  if(cacheResult) await AsyncStorage.setItem(cacheKey,response)
+  return response
+}
+
+// helper function for "fetch the response and save it to cache" action
+const fetchAndCache = async (cachekey,fetchFunc) => {
+  let response = await fetchFunc()
+  if(typeof response !== 'string') response = JSON.stringify(response)
+  await AsyncStorage.setItem(cacheKey,response)
+  return response
+}
+
 // retrieve the saved server url from the store
 function* getServerURL() {
   const serverURL = yield call(async () => await AsyncStorage.getItem(SERVER_URL_KEY))

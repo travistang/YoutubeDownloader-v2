@@ -26,7 +26,9 @@ export default class MainAudioLists extends React.Component {
           (this.props.searchResult.length)?<SearchResultList />:null
         }
 
-        <InDeviceResultListAudio audios={this.filteredInDeviceAudios()} />
+        <InDeviceResultListAudio
+          downloadToDevice={this.props.downloadToDevice}
+          audios={this.filteredInDeviceAudios()} />
 
       </ScrollView>
     )
