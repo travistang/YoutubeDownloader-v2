@@ -21,7 +21,10 @@ const initialState = {
 
   serverURL: DEFAULT_SERVER_URL,
   isServerURLLoadingComplete: false,
-  serverURLUpdateError: null
+  serverURLUpdateError: null,
+
+  audioInstance: null ,// the react-native-sound object
+  playingAudioInfo: null // the info of the audio in play
 }
 export default function (state = initialState,action) {
   console.log(action)
@@ -55,7 +58,7 @@ export default function (state = initialState,action) {
         ...state,
         inDeviceAudios: {
           ...state.inDeviceAudios,
-          [action.id]: action.status
+          [action.id]: {...state.inDeviceAudios[action.id],...action.status}
         }
       }
     case Actions.SHOW_LOADING_OVERLAY:
@@ -106,6 +109,39 @@ export default function (state = initialState,action) {
       return {
         ...state,
         urlUpdateError: action.error
+      }
+    case Actions.DOWNLOAD_AUDIO_TO_DEVICE_PROGRESS:
+      return {
+        ...state,
+        inDeviceAudios: {
+          ...state.inDeviceAudios,
+          [action.id]: {
+            ...state.inDeviceAudios[action.id],
+            toDeviceProgress: action.progress,
+            status: 'toDevice'
+          }
+        }
+      }
+    case Actions.SET_AUDIO_INSTANCE:
+      return {
+        ...state,
+        audioInstance: action.audioInstance
+      }
+    case Actions.SET_PLAYING_AUDIO_INFO:
+      return {
+        ...state,
+        playingAudioInfo: action.playingAudioInfo
+      }
+    case Actions.REGISTER_AUDIO_ON_DEVICE:
+      return {
+        ...state,
+        inDeviceAudios: {
+          ...state.inDeviceAudios,
+          [action.audio.id]: {
+            ...action.audio,
+            path: action.path
+          }
+        }
       }
     default:
       return state

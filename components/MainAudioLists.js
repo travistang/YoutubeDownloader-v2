@@ -4,22 +4,38 @@ import {
 } from 'react-native'
 import SearchResultList from '../containers/SearchResultList'
 import InDeviceResultListAudio from './InDeviceResultListAudio'
+import _ from 'lodash'
+
 export default class MainAudioLists extends React.Component {
   constructor(props) {
     super(props)
   }
-  filteredInDeviceAudios() {
-    if(!this.props.searchText || !this.props.searchText.length) {
-      return Object.values(this.props.inDeviceAudios)
+  separateAudios() {
+
+    const matchSearch = audio => (!this.props.searchText ||
+            audio.name.toLowerCase().trim().indexOf(
+            this.props.searchText.toLowerCase().trim()) > -1)
+    let onServerAudiosList = [],
+        onDeviceAudiosList = []
+        for(let i in this.props.inDeviceAudios) {
+          const audio = this.props.inDeviceAudios[i]
+          if(!matchSearch(audio)) continue
+          if(audio.path) onDeviceAudiosList.push(audio)
+          else onServerAudiosList.push(audio)
+        }
+    const result = {
+      onServerAudiosList,
+      onDeviceAudiosList
     }
-    return
-      Object.values(this.props.inDeviceAudios)
-        .filter(audio =>
-          audio.name.toLowerCase().trim()
-            .indexOf(this.props.searchText
-              .toLowerCase().trim()) > -1)
+    console.log('onDeviceAudiosList',onDeviceAudiosList)
+    return result
   }
+
   render() {
+    const {
+      onServerAudiosList,
+      onDeviceAudiosList
+    } = this.separateAudios()
     return (
       <ScrollView>
         {
@@ -28,22 +44,10 @@ export default class MainAudioLists extends React.Component {
 
         <InDeviceResultListAudio
           downloadToDevice={this.props.downloadToDevice}
-          audios={this.filteredInDeviceAudios()} />
+          readyToPlay={onDeviceAudiosList}
+          audios={onServerAudiosList} />
 
       </ScrollView>
     )
   }
 }
-
-// <ScrollView>
-//   {
-//     (this.props.searchText && this.props.searchText.length > 0) && (<SearchResultList />)
-//   }
-//   {
-//     /* The list of available audios on server comes later*/
-//   }
-//   {
-//     /* The list of available audios on device comes later*/
-//   }
-//
-// </ScrollView>

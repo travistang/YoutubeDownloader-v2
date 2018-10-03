@@ -19,23 +19,36 @@ export default class InDeviceResultListAudio extends React.Component {
   // status are displayed by color of the icons...
   // orange means proceeding; green means done; red means error. gray means not happened yet
   getAudioProgressComponent(audio) {
-    const iconColors = [null,null,null,null,null] // 3 steps with 2 arrows, so 5 colors...
+    const iconColors = [null,null,null,null,null], // 3 steps with 2 arrows, so 5 colors...
+          doneColor = Colors.green40,
+          progressColor = Colors.orange40,
+          failedColor = Colors.red40,
+          pendingColor = Colors.dark40
     // determine the colors of the icons first
     // these are from yt -> server
     if (audio.status === 'complete') {
-      iconColors[0] = iconColors[1] = iconColors[2] = Colors.green40
-      iconColors[3] = iconColors[4] = Colors.dark40
+      iconColors[0] = iconColors[1] = iconColors[2] = doneColor
+      iconColors[3] = iconColors[4] = pendingColor
     }
     else if (audio.status === 'failed') {
-      iconColors[0] = iconColors[1] = iconColors[2] = Colors.red40
-      iconColors[3] = iconColors[4] = Colors.dark40
+      iconColors[0] = iconColors[1] = iconColors[2] = failedColor
+      iconColors[3] = iconColors[4] = pendingColor
     }
     else if (audio.status === 'progress') {
-      iconColors[0] = iconColors[1] = iconColors[2] = Colors.orange40
-      iconColors[3] = iconColors[4] = Colors.dark40
+      iconColors[0] = iconColors[1] = iconColors[2] = progressColor
+      iconColors[3] = iconColors[4] = pendingColor
     }
-
-    if(iconColors.some(color => !color)) return null // ????
+    else if (audio.status === 'toDevice') {
+      iconColors[0] = iconColors[1] = iconColors[2] = doneColor
+      iconColors[3] = iconColors[4] = progressColor
+    }
+    else if (audio.status === 'onDevice') {
+      iconColors[0] = iconColors[1] = iconColors[2] = doneColor
+      iconColors[3] = iconColors[4] = doneColor
+    } else {
+      iconColors[0] = iconColors[1] = iconColors[2] = doneColor
+      iconColors[3] = iconColors[4] = failedColor
+    }
 
     const icons = "youtube,arrow-right,server,arrow-right,mobile"
       .split(',')
@@ -66,13 +79,24 @@ export default class InDeviceResultListAudio extends React.Component {
     else if (audio.status === 'complete') {
       actionSlot = (
         <View style={{width: '100%'}}>
-          <Button block backgroundColor="transparent" onPress={this.downloadToDevice.bind(this,audio)}>
+          <Button block backgroundColor="transparent" onPress={this.props.downloadToDevice.bind(this,audio)}>
             <Icon name="download" />
           </Button>
         </View>
       )
     }
-
+    else if (audio.status === 'toDevice') {
+      actionSlot = (
+        <View style={style.progressView}>
+          <Text> {audio.toDeviceProgress} %</Text>
+          <ProgressBar
+            style={{width: '100%'}}
+            progress={audio.toDeviceProgress}
+            height={10}
+          />
+        </View>
+      )
+    }
     // both the arrow thing and the actions slots are prepared, now return both
     return (
       <View>
@@ -81,10 +105,6 @@ export default class InDeviceResultListAudio extends React.Component {
       </View>
     )
 
-  }
-  downloadToDevice(audio) {
-    if(audio.status !== 'complete') return // well its not on server, so nothing to download
-    // TODO: dispatch actions here!
   }
 
   cardItemComponent(audio,key) {
@@ -99,19 +119,40 @@ export default class InDeviceResultListAudio extends React.Component {
             <Text> {audio.duration} </Text>
           </Card.Section>
           <Card.Section>
-            {this.getAudioProgressComponent(audio)}
+            {this.getAudioProgressComponent.bind(this,audio)()}
           </Card.Section>
         </Card.Section>
 
       </Card>
     )
   }
+  readyToPlayItemCompnent(audio,key) {
+    
+    return (
+      <Card key={key} row style={style.cardContainer}>
+        <Image style={style.thumbnail} source={{uri: audio.thumbnail}} />
+        <Card.Section body>
+          <Card.Section>
+            <Text text90 dark10 numberOfLines={2}>{audio.name}</Text>
+          </Card.Section>
+          <Card.Section>
+            <Text> {audio.duration} </Text>
+          </Card.Section>
+          <Card.Section>
+            <Text> Play Button </Text>
+          </Card.Section>
+        </Card.Section>
 
+      </Card>
+    )
+  }
   render() {
     return (
       <View>
         <Text style={style.title}> Downloaded </Text>
-        {this.props.audios.map(this.cardItemComponent.bind(this))}
+        { this.props.audios.map(this.cardItemComponent.bind(this))  }
+        <Text style={style.title}> Ready To Play </Text>
+        { this.props.readyToPlay.map(this.readyToPlayItemCompnent.bind(this)) }
       </View>
     )
   }

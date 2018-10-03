@@ -8,10 +8,10 @@ const mapStateToProps = state => {
 
 const mapDispatchToProps = dispatch => {
   return {
-    downloadToDevice: (id) => dispatch({
+    downloadToDevice: (audio) => dispatch({
       type: Actions.DOWNLOAD_AUDIO_TO_DEVICE,
-      id
+      audio
     })
   }
 }
-export default connect(mapStateToProps,null)(MainAudioLists)
+export default connect(mapStateToProps,mapDispatchToProps)(MainAudioLists)

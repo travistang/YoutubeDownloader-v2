@@ -6,7 +6,12 @@ import {
    takeEvery,
    takeLatest } from 'redux-saga/effects'
 import {delay} from "redux-saga"
-import {AsyncStorage} from 'react-native'
+
+import {
+  AsyncStorage,
+  Platform
+} from 'react-native'
+
 import {
   AUDIO_LIST_KEY
 } from '../config'
@@ -20,8 +25,13 @@ import {
   showToast,
   clearToast
 } from './overlay'
+
+import RNFetchBlob from 'rn-fetch-blob'
+import Sound from 'react-native-sound'
+
 // storage functions
 
+const audioStorageKey = (id) => `@##${id}`
 // honestly the audio value is NOT THAT IMPORTANT
 // because its the key (audio id) that matters
 // as the status will be updated by the websocket
@@ -34,6 +44,21 @@ const saveAudioId = async (audioId, audio) => {
   // return await AsyncStorage.setItem(audioId,JSON.stringify(audio))
 }
 
+const getAllAudioIdsOnDevice = async () => {
+  const keys = await AsyncStorage.getAllKeys()
+  const ids = keys.filter(key => key.indexOf('@##') === 0)
+
+  let result = []
+  for(let i in ids) {
+    const id = ids[i],
+          path = await AsyncStorage.getItem(id),
+          trueId = id.replace('@##',''),
+          audioStr = await AsyncStorage.getItem(trueId),
+          audio = JSON.parse(audioStr)
+    result.push({path,audio})
+  }
+  return result
+}
 // get all the audio ids that the user has tried to download
 const getAllAudioIds = async () => {
   return await AsyncStorage
@@ -94,6 +119,18 @@ function* watchLoadDownloadedAudio () {
 
   yield takeLatest(Actions.LOAD_DOWNLOADED_AUDIO_INFO,function* () {
     yield call(showToast,`Fetching downloaded audios`)
+    // populate all the audios on device
+    const onDeviceAudioIds = yield call(getAllAudioIdsOnDevice)
+    for(let i in onDeviceAudioIds) {
+      const entry = onDeviceAudioIds[i]
+      console.log('saga onDeviceAudio entry',entry)
+      yield put({
+        type: Actions.REGISTER_AUDIO_ON_DEVICE,
+        audio: entry.audio,
+        path: entry.path
+      })
+    }
+    // now get something from remote...
     const serverURL = yield select(store => store.serverURL)
     if(!serverURL) return // cant go further...
     // first get all the marked entries from async storage
@@ -122,7 +159,6 @@ function* watchLoadDownloadedAudio () {
       alert(JSON.stringify(e))
       const ids = yield call(getAllAudioIds)
       ids.forEach(subscribeToAudioStatusChange(socket))
-
     }
 
   })
@@ -330,6 +366,75 @@ function* watchSaveServerURL() {
     })
   })
 }
+
+function* watchDownloadAudioToDevice() {
+  yield takeEvery(Actions.DOWNLOAD_AUDIO_TO_DEVICE,function* (action) {
+    const SERVER_URL = yield select(s => s.serverURL),
+          audio = action.audio,
+          id = audio.id,
+          url = `${SERVER_URL}/storage/${id}.mp3`,
+          storageKey = audioStorageKey(id)
+
+    // check if the audio has been downloaded before
+    let audioPath = yield call(AsyncStorage.getItem,storageKey)
+    if(audioPath) {
+      showToastInCallback(`${audio.name} is already on device`,3000)
+      return
+    }
+    // good to go, continue to download
+    RNFetchBlob.config({
+      fileCache: true,
+      addAndroidDownloads : {
+          useDownloadManager : true, // <-- this is the only thing required
+          description : `Downloading ${audio.name}`
+      }
+    })
+    .fetch('GET',url)
+    .progress({interval: 1000},(written,total) => {
+      // log the server -> device progress
+      const percentage = Math.round(written / total * 100)
+      store.dispatch({
+        type: Actions.DOWNLOAD_AUDIO_TO_DEVICE_PROGRESS,
+        id,
+        progress: percentage
+      })
+      console.log('download percentage',percentage)
+    })
+    .then((res) => {
+      const path = Platform.OS === 'android' ? 'file://' + res.path() : '' + res.path()
+      // save it to the async storage...
+      // the format should be [audio.id]:path...
+      AsyncStorage.setItem(audioStorageKey(id),path)
+      // then update the store...
+      store.dispatch({
+        type: Actions.REGISTER_AUDIO_ON_DEVICE,
+        audio,
+        path,
+      })
+      // notify download completed...
+      showToastInCallback(`${audio.name} is now on device`,3000)
+    })
+    .catch(err => {
+      alert(JSON.stringify(err))
+    })
+  })
+}
+
+function* watchPlayAudio() {
+  yield takeLatest(Actions.PLAY_AUDIO,function* (action) {
+    const audio = action.audio,
+          id    = audio.id,
+          storageKey = audioStorageKey(id)
+          path  = yield call(AsyncStorage.getItem,storageKey)
+    if (!path) return // gg..
+    // create the audioInstance for controlling play...
+    const audioInstance = new Sound(path,Sound.MAIN_BUNDLE,(error) => {
+      // failed to play sound,
+      alert(JSON.stringify(error))
+    })
+    yield put({type: Actions.SET_AUDIO_INSTANCE, audioInstance})
+  })
+}
 export default function* rootSaga() {
   yield [
     getServerURL(),
@@ -340,6 +445,9 @@ export default function* rootSaga() {
     watchDownloadAudioInstruction(),
     // loadAudioInfo(),
     watchSaveServerURL(),
+    // this is for listening to the video download command (server -> device)
+    watchDownloadAudioToDevice(),
+    // this is for listening to the "play audio" command
+    watchPlayAudio()
   ]
-
 }
